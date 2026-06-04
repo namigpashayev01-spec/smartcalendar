@@ -17,7 +17,9 @@ class AuthController extends Controller
         if (Auth::check()) {
             return redirect()->route('calendar');
         }
-        return view('auth.login');
+        return response()->view('auth.login')
+            ->header('Cache-Control', 'no-store, no-cache, must-revalidate')
+            ->header('Pragma', 'no-cache');
     }
 
     public function login(Request $request)
