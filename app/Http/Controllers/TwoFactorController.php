@@ -103,10 +103,9 @@ class TwoFactorController extends Controller
             return back()->withErrors(['code' => 'Kod yanlışdır.']);
         }
 
-        $remember = session('2fa_remember', false);
-        session()->forget(['2fa_user_id', '2fa_remember']);
+        session()->forget('2fa_user_id');
 
-        Auth::login($user, $remember);
+        Auth::login($user);
         $request->session()->regenerate();
         session(['2fa_verified' => true]);
 

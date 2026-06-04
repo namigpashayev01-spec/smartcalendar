@@ -45,7 +45,7 @@ class AuthController extends Controller
 
         $field = filter_var($login, FILTER_VALIDATE_EMAIL) ? 'email' : 'username';
 
-        if (Auth::attempt([$field => $login, 'password' => $request->password, 'is_active' => true], $request->boolean('remember'))) {
+        if (Auth::attempt([$field => $login, 'password' => $request->password, 'is_active' => true])) {
             $request->session()->regenerate();
             $user->update(['login_attempts' => 0, 'locked_until' => null]);
 
@@ -54,10 +54,9 @@ class AuthController extends Controller
                 return redirect()->route('two-factor.setup');
             }
 
-            // 2FA aktiv → remember seçimini saxla, challenge-ə yönləndir
-            $remember = $request->boolean('remember');
+            // 2FA aktiv → challenge-ə yönləndir
             Auth::logout();
-            session(['2fa_user_id' => $user->id, '2fa_remember' => $remember]);
+            session(['2fa_user_id' => $user->id]);
             return redirect()->route('two-factor.challenge');
         }
 

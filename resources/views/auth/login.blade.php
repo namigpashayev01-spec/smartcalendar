@@ -125,28 +125,6 @@
     margin-top: .35rem;
   }
 
-  .remember-row {
-    display: flex;
-    align-items: center;
-    gap: .45rem;
-    margin-bottom: 1rem;
-  }
-
-  .remember-row input[type="checkbox"] {
-    width: 15px;
-    height: 15px;
-    accent-color: #0176D3;
-    cursor: pointer;
-    flex-shrink: 0;
-  }
-
-  .remember-row label {
-    font-size: .8rem;
-    color: rgba(255,255,255,.45);
-    cursor: pointer;
-    user-select: none;
-  }
-
   .btn-login {
     width: 100%;
     background: linear-gradient(135deg, #0176D3, #0891B2);
@@ -226,11 +204,6 @@
     @error('password')
       <div class="invalid-feedback">{{ $message }}</div>
     @enderror
-  </div>
-
-  <div class="remember-row">
-    <input type="checkbox" id="remember" name="remember" />
-    <label for="remember">Məni xatırla</label>
   </div>
 
   <button type="submit" class="btn-login">Daxil ol</button>

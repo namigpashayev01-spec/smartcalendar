@@ -14,7 +14,7 @@ class RequireTwoFactor
 
         if ($user && $user->two_factor_confirmed_at && !session('2fa_verified')) {
             Auth::logout();
-            session(['2fa_user_id' => $user->id, '2fa_remember' => true]);
+            session(['2fa_user_id' => $user->id]);
             return redirect()->route('two-factor.challenge');
         }
 
