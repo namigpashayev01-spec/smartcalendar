@@ -40,7 +40,14 @@ class ChatController extends Controller
 
         $users = User::where('id', '!=', $me->id)->where('is_active', true)->orderBy('name')->get();
 
-        return view('chat.index', compact('convs', 'users'));
+        $participantsMap = $convs->mapWithKeys(fn($c) => [
+            $c['conv']->id => $c['conv']->users
+                ->filter(fn($u) => $u->id !== $me->id)
+                ->map(fn($u) => ['id' => $u->id, 'name' => $u->name, 'initial' => strtoupper(substr($u->name, 0, 1))])
+                ->values(),
+        ]);
+
+        return view('chat.index', compact('convs', 'users', 'participantsMap'));
     }
 
     // ── Start / create ────────────────────────────────────────────────────────
@@ -63,9 +70,10 @@ class ChatController extends Controller
         }
 
         return response()->json([
-            'id'          => $conv->id,
-            'displayName' => $user->name,
-            'isGroup'     => false,
+            'id'           => $conv->id,
+            'displayName'  => $user->name,
+            'isGroup'      => false,
+            'participants' => [['id' => $user->id, 'name' => $user->name, 'initial' => strtoupper(substr($user->name, 0, 1))]],
         ]);
     }
 
@@ -87,10 +95,15 @@ class ChatController extends Controller
         $ids = array_unique(array_merge([$me->id], $request->user_ids));
         $conv->participants()->createMany(array_map(fn($id) => ['user_id' => $id], $ids));
 
+        $memberList = User::whereIn('id', $ids)->where('id', '!=', $me->id)->get()
+            ->map(fn($u) => ['id' => $u->id, 'name' => $u->name, 'initial' => strtoupper(substr($u->name, 0, 1))])
+            ->values();
+
         return response()->json([
-            'id'          => $conv->id,
-            'displayName' => $conv->name,
-            'isGroup'     => true,
+            'id'           => $conv->id,
+            'displayName'  => $conv->name,
+            'isGroup'      => true,
+            'participants' => $memberList,
         ]);
     }
 

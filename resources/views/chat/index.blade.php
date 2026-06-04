@@ -98,6 +98,19 @@
 .btn-cancel { background:var(--surface-2); color:var(--text-dim); border:1px solid var(--border-strong); border-radius:9px; padding:.55rem 1rem; font-size:.85rem; cursor:pointer; font-family:inherit; transition:background .15s; }
 .btn-cancel:hover { background:var(--bg); }
 
+/* ── Mention dropdown ── */
+#chatInputWrap { position:relative; }
+.mention-dropdown { position:absolute; bottom:calc(100% + 6px); left:1.25rem; right:1.25rem; background:var(--surface); border:1px solid var(--border); border-radius:11px; box-shadow:var(--shadow); overflow:hidden; z-index:200; max-height:220px; overflow-y:auto; }
+.mention-item { display:flex; align-items:center; gap:.65rem; padding:.6rem .9rem; cursor:pointer; transition:background .12s; }
+.mention-item:hover,.mention-item.kbd-active { background:var(--accent-soft); }
+.mention-item-avatar { width:28px; height:28px; border-radius:50%; background:linear-gradient(135deg,var(--accent),#0891B2); display:flex; align-items:center; justify-content:center; font-size:.7rem; font-weight:700; color:#fff; flex-shrink:0; }
+.mention-item-name { font-size:.85rem; font-weight:500; color:var(--text); }
+.mention-item-hint { font-size:.72rem; color:var(--text-faint); margin-left:auto; }
+
+/* ── Mention chip in bubbles ── */
+.mention-chip { display:inline-block; background:rgba(1,118,211,.12); color:var(--accent); font-weight:600; border-radius:4px; padding:0 3px; }
+.msg-row.mine .mention-chip { background:rgba(255,255,255,.22); color:#fff; }
+
 /* ── Upload preview ── */
 .upload-preview { display:flex; align-items:center; gap:.5rem; background:var(--accent-soft); border:1px solid var(--accent-soft-2); border-radius:8px; padding:.45rem .75rem; font-size:.78rem; color:var(--accent); margin-bottom:.4rem; }
 .upload-preview svg { flex-shrink:0; }
@@ -179,14 +192,16 @@
     </div>
 
     <div id="chatInputWrap" style="display:none">
-      <div id="uploadPreview" style="display:none" class="upload-preview" style="margin:.4rem 1.25rem 0">
+      <div id="mentionDropdown" class="mention-dropdown" style="display:none"></div>
+
+    <div id="uploadPreview" style="display:none" class="upload-preview" style="margin:.4rem 1.25rem 0">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
         <span class="upload-preview-name" id="uploadFileName"></span>
         <span class="upload-preview-remove" onclick="clearUpload()" title="Ləğv et">✕</span>
       </div>
       <div class="chat-input">
-        <textarea id="msgInput" placeholder="Mesaj yazın…" rows="1"
-          onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea>
+        <textarea id="msgInput" placeholder="Mesaj yazın… (@Ad ilə tag edin)" rows="1"
+          onkeydown="handleKey(event)" oninput="onTextInput(event)"></textarea>
         <div class="chat-input-actions">
           <button class="btn-icon btn-attach" onclick="document.getElementById('fileInput').click()" title="Fayl əlavə et">
             <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
@@ -252,6 +267,7 @@
 <script>
 const CSRF         = document.querySelector('meta[name="csrf-token"]').content;
 const ME_ID        = {{ auth()->id() }};
+const PARTICIPANTS = @json($participantsMap); // convId → [{id,name,initial}]
 
 let activeConvId   = null;
 let activeIsGroup  = false;
@@ -259,6 +275,12 @@ let lastMsgId      = 0;
 let pollTimer      = null;
 let lastDate       = null;
 let pendingFile    = null;
+
+// ── Mention state ─────────────────────────────────────────────────────────────
+let mentionActive  = false;
+let mentionStart   = -1;
+let mentionEnd     = -1;
+let mentionKbdIdx  = -1;
 
 // ── Open conversation ─────────────────────────────────────────────────────────
 function openConversation(convId, name, isGroup) {
@@ -271,6 +293,7 @@ function openConversation(convId, name, isGroup) {
   lastDate      = null;
   pendingFile   = null;
 
+  hideMentionDropdown();
   document.querySelectorAll('.chat-item').forEach(el => el.classList.remove('active'));
   document.getElementById(`conv-item-${convId}`)?.classList.add('active');
 
@@ -344,7 +367,7 @@ function appendMessage(msg) {
     }
   }
 
-  const bodyHtml = msg.body ? `<div class="msg-bubble">${msg.body ? escHtml(msg.body).replace(/\n/g,'<br>') : ''}</div>` : '';
+  const bodyHtml = msg.body ? `<div class="msg-bubble">${renderBody(msg.body)}</div>` : '';
   const mediaWrap = mediaHtml ? `<div class="msg-bubble" style="padding:.4rem;background:${msg.mine ? 'var(--accent)' : 'var(--surface-2)'};border:${msg.mine ? 'none' : '1px solid var(--border)'}">${mediaHtml}</div>` : '';
 
   const senderHtml = (!msg.mine && activeIsGroup)
@@ -452,6 +475,7 @@ async function startDirect() {
   const data = await res.json();
   document.getElementById('directModal').style.display = 'none';
 
+  if (data.participants) PARTICIPANTS[data.id] = data.participants;
   if (!document.getElementById(`conv-item-${data.id}`)) {
     addConvToSidebar(data.id, data.displayName, false);
   }
@@ -475,6 +499,7 @@ async function createGroup() {
   document.getElementById('groupName').value = '';
   document.querySelectorAll('.group-user-cb').forEach(cb => cb.checked = false);
 
+  if (data.participants) PARTICIPANTS[data.id] = data.participants;
   if (!document.getElementById(`conv-item-${data.id}`)) {
     addConvToSidebar(data.id, data.displayName, true);
   }
@@ -516,8 +541,36 @@ function updatePreview(convId, msg) {
 }
 
 function handleKey(e) {
+  if (mentionActive) {
+    const items = document.querySelectorAll('.mention-item');
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      mentionKbdIdx = Math.min(mentionKbdIdx + 1, items.length - 1);
+      renderMentionActive(items);
+      return;
+    }
+    if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      mentionKbdIdx = Math.max(mentionKbdIdx - 1, 0);
+      renderMentionActive(items);
+      return;
+    }
+    if (e.key === 'Enter' || e.key === 'Tab') {
+      e.preventDefault();
+      const idx = mentionKbdIdx >= 0 ? mentionKbdIdx : 0;
+      if (items[idx]) items[idx].dispatchEvent(new MouseEvent('mousedown'));
+      return;
+    }
+    if (e.key === 'Escape') { hideMentionDropdown(); return; }
+  }
   if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
   updateSendBtn();
+}
+
+function onTextInput(e) {
+  autoResize(e.target);
+  updateSendBtn();
+  detectMention();
 }
 
 function autoResize(el) {
@@ -528,6 +581,79 @@ function autoResize(el) {
 function scrollBottom() {
   const box = document.getElementById('chatMsgs');
   box.scrollTop = box.scrollHeight;
+}
+
+// ── Mention logic ─────────────────────────────────────────────────────────────
+function detectMention() {
+  const input = document.getElementById('msgInput');
+  const pos   = input.selectionStart;
+  const text  = input.value.substring(0, pos);
+  // Match @ followed by word chars (supports Unicode: Azerbaijani, Cyrillic, etc.)
+  const match = text.match(/@([\p{L}\p{N}_]*)$/u);
+
+  if (!match) { hideMentionDropdown(); return; }
+
+  const query = match[1].toLowerCase();
+  mentionStart = match.index;
+  mentionEnd   = pos;
+
+  const all = PARTICIPANTS[activeConvId] || [];
+  const filtered = query
+    ? all.filter(p => p.name.toLowerCase().includes(query))
+    : all;
+
+  if (!filtered.length) { hideMentionDropdown(); return; }
+
+  mentionActive  = true;
+  mentionKbdIdx  = -1;
+
+  const dd = document.getElementById('mentionDropdown');
+  dd.innerHTML = filtered.map((p, i) => `
+    <div class="mention-item" data-name="${escAttr(p.name)}"
+      onmousedown="selectMention('${escAttr(p.name)}')"
+      onmouseover="mentionKbdIdx=${i};renderMentionActive()">
+      <div class="mention-item-avatar">${escHtml(p.initial)}</div>
+      <span class="mention-item-name">${escHtml(p.name)}</span>
+      <span class="mention-item-hint">Tab / Enter</span>
+    </div>
+  `).join('');
+  dd.style.display = 'block';
+}
+
+function selectMention(name) {
+  const input = document.getElementById('msgInput');
+  const after = input.value.substring(mentionEnd);
+  // Use first word of name as the mention tag (e.g. @Tural)
+  const tag = name.includes(' ') ? name.split(' ')[0] : name;
+  input.value = input.value.substring(0, mentionStart) + '@' + tag + ' ' + after;
+  const newPos = mentionStart + tag.length + 2;
+  input.setSelectionRange(newPos, newPos);
+  hideMentionDropdown();
+  autoResize(input);
+  updateSendBtn();
+  input.focus();
+}
+
+function hideMentionDropdown() {
+  document.getElementById('mentionDropdown').style.display = 'none';
+  mentionActive = false;
+  mentionKbdIdx = -1;
+}
+
+function renderMentionActive(items) {
+  items = items || document.querySelectorAll('.mention-item');
+  items.forEach((el, i) => el.classList.toggle('kbd-active', i === mentionKbdIdx));
+}
+
+// Render message body: escape HTML, highlight @mentions, convert newlines
+function renderBody(text) {
+  return escHtml(text)
+    .replace(/\n/g, '<br>')
+    .replace(/@([\p{L}\p{N}_]+)/gu, '<span class="mention-chip">@$1</span>');
+}
+
+function escAttr(s) {
+  return (s ?? '').replace(/'/g, '&#39;').replace(/"/g, '&quot;');
 }
 
 function escHtml(s) {
