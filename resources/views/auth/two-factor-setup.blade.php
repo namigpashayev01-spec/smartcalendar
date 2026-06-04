@@ -1,4 +1,4 @@
-@extends('layouts.app')
+@extends('layouts.auth')
 
 @section('title', '2FA Qurulumu — Smart Calendar')
 
