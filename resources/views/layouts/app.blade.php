@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="csrf-token" content="{{ csrf_token() }}"/>
   <title>@yield('title','Smart Calendar')</title>
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
@@ -28,6 +29,10 @@
   <nav class="header-right">
     <a href="{{ route('report') }}" class="ghost-btn">Hesabat</a>
     <a href="{{ route('log') }}" class="ghost-btn">Jurnal</a>
+    <a href="{{ route('chat.index') }}" class="ghost-btn" style="position:relative">
+      Chat
+      <span id="navChatBadge" style="display:none;position:absolute;top:-4px;right:-6px;background:var(--accent);color:#fff;font-size:.62rem;font-weight:700;border-radius:999px;min-width:16px;height:16px;align-items:center;justify-content:center;padding:0 4px"></span>
+    </a>
     @if(auth()->user()->isAdmin())
     <a href="{{ route('users.index') }}" class="ghost-btn">İstifadəçilər</a>
     @endif
@@ -56,5 +61,21 @@
 </main>
 
 @stack('scripts')
+<script>
+(function() {
+  function updateChatBadge() {
+    fetch('/chat/unread-count', { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+      .then(r => r.json())
+      .then(data => {
+        const b = document.getElementById('navChatBadge');
+        if (!b) return;
+        if (data.count > 0) { b.textContent = data.count; b.style.display = 'inline-flex'; }
+        else { b.style.display = 'none'; }
+      }).catch(() => {});
+  }
+  updateChatBadge();
+  setInterval(updateChatBadge, 8000);
+})();
+</script>
 </body>
 </html>

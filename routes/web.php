@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CalendarController;
+use App\Http\Controllers\ChatController;
 use App\Http\Controllers\PostController;
 use App\Http\Controllers\MediaController;
 use App\Http\Controllers\ReportController;
@@ -50,4 +51,9 @@ Route::middleware(['auth', 'two-factor'])->group(function () {
     Route::get('/users',                              [UserController::class, 'index'])->name('users.index');
     Route::patch('/users/{user}/email',               [UserController::class, 'updateEmail'])->name('users.update-email');
     Route::post('/users/{user}/reset-two-factor',     [UserController::class, 'resetTwoFactor'])->name('users.reset-2fa');
+
+    Route::get('/chat/unread-count',           [ChatController::class, 'unreadCount'])->name('chat.unread');
+    Route::get('/chat',                        [ChatController::class, 'index'])->name('chat.index');
+    Route::get('/chat/{user}/messages',        [ChatController::class, 'fetch'])->name('chat.fetch');
+    Route::post('/chat/{user}',                [ChatController::class, 'send'])->name('chat.send');
 });
