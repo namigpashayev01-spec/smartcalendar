@@ -6,11 +6,15 @@ use App\Http\Controllers\PostController;
 use App\Http\Controllers\MediaController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\LogController;
+use App\Http\Controllers\TwoFactorController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/login',  [AuthController::class, 'showLogin'])->name('login');
-Route::post('/login', [AuthController::class, 'login']);
+Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:10,1');
 Route::post('/logout',[AuthController::class, 'logout'])->name('logout')->middleware('auth');
+
+Route::get('/two-factor-challenge',  [TwoFactorController::class, 'challenge'])->name('two-factor.challenge');
+Route::post('/two-factor-challenge', [TwoFactorController::class, 'verify'])->name('two-factor.verify')->middleware('throttle:10,1');
 
 Route::middleware('auth')->group(function () {
     Route::get('/',                       [CalendarController::class, 'index'])->name('calendar');
@@ -31,4 +35,8 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/log',                    [LogController::class, 'index'])->name('log');
     Route::delete('/log',                 [LogController::class, 'destroy'])->name('log.destroy');
+
+    Route::get('/two-factor/setup',       [TwoFactorController::class, 'setup'])->name('two-factor.setup');
+    Route::post('/two-factor/enable',     [TwoFactorController::class, 'enable'])->name('two-factor.enable');
+    Route::delete('/two-factor/disable',  [TwoFactorController::class, 'disable'])->name('two-factor.disable');
 });

@@ -12,11 +12,11 @@ class User extends Authenticatable
 {
     use HasFactory, Notifiable;
 
-    protected $fillable = ['name', 'username', 'password', 'role', 'is_active'];
+    protected $fillable = ['name', 'username', 'password', 'role', 'is_active', 'login_attempts', 'locked_until', 'two_factor_secret', 'two_factor_confirmed_at'];
 
     protected $hidden = ['password', 'remember_token'];
 
-    protected $casts = ['password' => 'hashed', 'is_active' => 'boolean'];
+    protected $casts = ['password' => 'hashed', 'is_active' => 'boolean', 'two_factor_confirmed_at' => 'datetime'];
 
     public function posts()
     {
