@@ -58,4 +58,6 @@ Route::middleware(['auth', 'two-factor'])->group(function () {
     Route::post('/chat/direct/{user}',                   [ChatController::class, 'startDirect'])->name('chat.direct');
     Route::get('/chat/{conversation}/messages',          [ChatController::class, 'fetch'])->name('chat.fetch');
     Route::post('/chat/{conversation}/send',             [ChatController::class, 'send'])->name('chat.send');
+    Route::patch('/chat/messages/{message}',             [ChatController::class, 'editMessage'])->name('chat.message.edit');
+    Route::delete('/chat/messages/{message}',            [ChatController::class, 'deleteMessage'])->name('chat.message.delete');
 });

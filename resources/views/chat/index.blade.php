@@ -117,6 +117,25 @@
 .upload-preview-name { flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .upload-preview-remove { cursor:pointer; color:var(--text-faint); padding:0 .2rem; }
 .upload-preview-remove:hover { color:var(--danger); }
+
+/* ── Message edit / delete ── */
+.msg-actions { display:none; align-self:center; gap:.15rem; flex-shrink:0; }
+.msg-row.mine:hover .msg-actions { display:flex; }
+.msg-act { width:26px; height:26px; border:1px solid var(--border-strong); border-radius:6px; background:var(--surface); color:var(--text-faint); cursor:pointer; display:flex; align-items:center; justify-content:center; transition:color .15s,background .15s,border-color .15s; padding:0; }
+.msg-act:hover { background:var(--surface-2); color:var(--text); }
+.msg-act.del:hover { background:var(--danger-soft); color:var(--danger); border-color:var(--danger); }
+
+.msg-bubble.is-deleted { font-style:italic; }
+.msg-row.theirs .msg-bubble.is-deleted { color:var(--text-faint)!important; }
+.msg-row.mine   .msg-bubble.is-deleted { background:rgba(255,255,255,.12)!important; color:rgba(255,255,255,.55)!important; }
+
+.msg-edited-tag { font-size:.62rem; opacity:.6; margin-left:.25rem; }
+
+.edit-wrap { display:flex; flex-direction:column; gap:.4rem; min-width:180px; }
+.edit-ta { width:100%; border:1.5px solid var(--accent); border-radius:8px; padding:.45rem .75rem; font-size:.875rem; font-family:inherit; color:var(--text); background:#fff; resize:none; outline:none; line-height:1.5; }
+.edit-btns { display:flex; gap:.4rem; justify-content:flex-end; }
+.edit-save { background:var(--accent); color:#fff; border:none; border-radius:6px; padding:.28rem .75rem; font-size:.78rem; font-weight:600; cursor:pointer; font-family:inherit; }
+.edit-cancel { background:var(--surface-2); color:var(--text-dim); border:1px solid var(--border-strong); border-radius:6px; padding:.28rem .65rem; font-size:.78rem; cursor:pointer; font-family:inherit; }
 </style>
 @endpush
 
@@ -267,11 +286,12 @@
 <script>
 const CSRF         = document.querySelector('meta[name="csrf-token"]').content;
 const ME_ID        = {{ auth()->id() }};
-const PARTICIPANTS = @json($participantsMap); // convId → [{id,name,initial}]
+const PARTICIPANTS = @json($participantsMap);
 
 let activeConvId   = null;
 let activeIsGroup  = false;
 let lastMsgId      = 0;
+let lastPollAt     = 0;
 let pollTimer      = null;
 let lastDate       = null;
 let pendingFile    = null;
@@ -319,6 +339,7 @@ function openConversation(convId, name, isGroup) {
 
 // ── Load & poll ───────────────────────────────────────────────────────────────
 async function loadMessages() {
+  lastPollAt = Math.floor(Date.now() / 1000);
   const res  = await apiFetch(`/chat/${activeConvId}/messages`);
   const msgs = await res.json();
   const box  = document.getElementById('chatMsgs');
@@ -331,16 +352,24 @@ async function loadMessages() {
 
 async function pollMessages() {
   if (!activeConvId) return;
-  const res  = await apiFetch(`/chat/${activeConvId}/messages?after=${lastMsgId}`);
-  const msgs = await res.json();
-  if (!msgs.length) return;
+  const now = Math.floor(Date.now() / 1000);
+  const res = await apiFetch(`/chat/${activeConvId}/messages?after=${lastMsgId}&since=${lastPollAt}`);
+  const data = await res.json();
+  lastPollAt = now;
 
-  const box      = document.getElementById('chatMsgs');
-  const atBottom = box.scrollHeight - box.scrollTop - box.clientHeight < 80;
-  msgs.forEach(m => appendMessage(m));
-  if (atBottom) scrollBottom();
-  lastMsgId = msgs[msgs.length - 1].id;
-  updatePreview(activeConvId, msgs[msgs.length - 1]);
+  const newMsgs     = data.new     || [];
+  const changedMsgs = data.changed || [];
+
+  if (newMsgs.length) {
+    const box      = document.getElementById('chatMsgs');
+    const atBottom = box.scrollHeight - box.scrollTop - box.clientHeight < 80;
+    newMsgs.forEach(m => appendMessage(m));
+    if (atBottom) scrollBottom();
+    lastMsgId = newMsgs[newMsgs.length - 1].id;
+    updatePreview(activeConvId, newMsgs[newMsgs.length - 1]);
+  }
+
+  changedMsgs.forEach(m => updateMessageInDOM(m));
 }
 
 // ── Append message ────────────────────────────────────────────────────────────
@@ -356,37 +385,72 @@ function appendMessage(msg) {
   }
 
   const row = document.createElement('div');
+  row.id        = `msg-${msg.id}`;
   row.className = `msg-row ${msg.mine ? 'mine' : 'theirs'}`;
+  row.dataset.body = msg.body || '';
+
+  row.innerHTML = buildMsgInner(msg);
+  box.appendChild(row);
+}
+
+function buildMsgInner(msg) {
+  if (msg.deleted) {
+    const actHtml = msg.mine
+      ? `<div class="msg-actions">
+           <button class="msg-act del" onclick="deleteMsg(${msg.id})" title="Sil" style="display:none"></button>
+         </div>` : '';
+    return `
+      ${!msg.mine ? `<div class="msg-avatar">${escHtml(msg.sender_initial||'?')}</div>` : ''}
+      <div class="msg-content">
+        ${(!msg.mine && activeIsGroup) ? `<div class="msg-sender">${escHtml(msg.sender_name||'')}</div>` : ''}
+        <div class="msg-bubble is-deleted">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:4px;vertical-align:middle"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>Bu mesaj silindi
+        </div>
+        <div class="msg-time">${msg.time}</div>
+      </div>
+      ${actHtml}`;
+  }
 
   let mediaHtml = '';
   if (msg.attachment_url) {
-    if (msg.attachment_type === 'image') {
-      mediaHtml = `<img src="${msg.attachment_url}" class="msg-attachment-img" onclick="window.open('${msg.attachment_url}','_blank')" loading="lazy">`;
-    } else {
-      mediaHtml = `<video src="${msg.attachment_url}" class="msg-attachment-vid" controls preload="metadata"></video>`;
-    }
+    mediaHtml = msg.attachment_type === 'image'
+      ? `<img src="${escAttr(msg.attachment_url)}" class="msg-attachment-img" onclick="window.open('${escAttr(msg.attachment_url)}','_blank')" loading="lazy">`
+      : `<video src="${escAttr(msg.attachment_url)}" class="msg-attachment-vid" controls preload="metadata"></video>`;
   }
 
-  const bodyHtml = msg.body ? `<div class="msg-bubble">${renderBody(msg.body)}</div>` : '';
-  const mediaWrap = mediaHtml ? `<div class="msg-bubble" style="padding:.4rem;background:${msg.mine ? 'var(--accent)' : 'var(--surface-2)'};border:${msg.mine ? 'none' : '1px solid var(--border)'}">${mediaHtml}</div>` : '';
+  const editedTag = msg.edited ? `<span class="msg-edited-tag">(redaktə edildi)</span>` : '';
+  const bodyHtml  = msg.body
+    ? `<div class="msg-bubble">${renderBody(msg.body)}${editedTag}</div>` : '';
+  const mediaWrap = mediaHtml
+    ? `<div class="msg-bubble" style="padding:.4rem;background:${msg.mine ? 'var(--accent)' : 'var(--surface-2)'};border:${msg.mine ? 'none' : '1px solid var(--border)'}">${mediaHtml}</div>` : '';
 
-  const senderHtml = (!msg.mine && activeIsGroup)
-    ? `<div class="msg-sender">${escHtml(msg.sender_name)}</div>` : '';
+  const actHtml = msg.mine
+    ? `<div class="msg-actions">
+         ${msg.body ? `<button class="msg-act" onclick="startEdit(${msg.id})" title="Redaktə et">
+           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+         </button>` : ''}
+         <button class="msg-act del" onclick="deleteMsg(${msg.id})" title="Sil">
+           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+         </button>
+       </div>` : '';
 
-  const avatarHtml = !msg.mine
-    ? `<div class="msg-avatar">${msg.sender_initial}</div>` : '';
-
-  row.innerHTML = `
-    ${avatarHtml}
+  return `
+    ${!msg.mine ? `<div class="msg-avatar">${escHtml(msg.sender_initial||'?')}</div>` : ''}
     <div class="msg-content">
-      ${senderHtml}
+      ${(!msg.mine && activeIsGroup) ? `<div class="msg-sender">${escHtml(msg.sender_name||'')}</div>` : ''}
       ${mediaWrap}
       ${bodyHtml}
       <div class="msg-time">${msg.time}</div>
     </div>
-  `;
+    ${actHtml}`;
+}
 
-  box.appendChild(row);
+// ── Update existing message in DOM (edit / delete from poll) ──────────────────
+function updateMessageInDOM(msg) {
+  const row = document.getElementById(`msg-${msg.id}`);
+  if (!row) return;
+  row.dataset.body = msg.body || '';
+  row.innerHTML = buildMsgInner(msg);
 }
 
 // ── Send ──────────────────────────────────────────────────────────────────────
@@ -650,6 +714,82 @@ function renderBody(text) {
   return escHtml(text)
     .replace(/\n/g, '<br>')
     .replace(/@([\p{L}\p{N}_]+)/gu, '<span class="mention-chip">@$1</span>');
+}
+
+// ── Edit message ─────────────────────────────────────────────────────────────
+function startEdit(msgId) {
+  const row  = document.getElementById(`msg-${msgId}`);
+  if (!row) return;
+  const bubble = row.querySelector('.msg-bubble:not(.is-deleted)');
+  if (!bubble) return;
+
+  const original = row.dataset.body || '';
+  bubble.innerHTML = `
+    <div class="edit-wrap">
+      <textarea class="edit-ta" id="edit-ta-${msgId}" rows="1">${escHtml(original)}</textarea>
+      <div class="edit-btns">
+        <button class="edit-cancel" onmousedown="cancelEdit(${msgId})">Ləğv et</button>
+        <button class="edit-save"   onmousedown="saveEdit(${msgId})">Saxla</button>
+      </div>
+    </div>`;
+
+  const ta = document.getElementById(`edit-ta-${msgId}`);
+  ta.style.height = 'auto';
+  ta.style.height = ta.scrollHeight + 'px';
+  ta.focus();
+  ta.setSelectionRange(ta.value.length, ta.value.length);
+
+  ta.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); saveEdit(msgId); }
+    if (e.key === 'Escape') cancelEdit(msgId);
+  });
+}
+
+async function saveEdit(msgId) {
+  const ta = document.getElementById(`edit-ta-${msgId}`);
+  if (!ta) return;
+  const body = ta.value.trim();
+  if (!body) return;
+
+  const res  = await fetch(`/chat/messages/${msgId}`, {
+    method: 'PATCH',
+    headers: { 'X-CSRF-TOKEN': CSRF, 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+    body: JSON.stringify({ body }),
+  });
+  const msg = await res.json();
+  if (msg.error) { alert(msg.error); return; }
+  updateMessageInDOM(msg);
+}
+
+function cancelEdit(msgId) {
+  const row = document.getElementById(`msg-${msgId}`);
+  if (!row) return;
+  row.innerHTML = buildMsgInner({
+    id: msgId, body: row.dataset.body, mine: true,
+    time: row.querySelector('.msg-time')?.textContent || '',
+    date: lastDate, edited: false, deleted: false,
+    sender_name: '', sender_initial: '',
+    attachment_url: null, attachment_type: null,
+  });
+}
+
+// ── Delete message ────────────────────────────────────────────────────────────
+async function deleteMsg(msgId) {
+  if (!confirm('Bu mesajı silmək istəyirsiniz?')) return;
+
+  await fetch(`/chat/messages/${msgId}`, {
+    method: 'DELETE',
+    headers: { 'X-CSRF-TOKEN': CSRF, 'X-Requested-With': 'XMLHttpRequest' },
+  });
+
+  const row = document.getElementById(`msg-${msgId}`);
+  if (row) {
+    updateMessageInDOM({
+      id: msgId, deleted: true, mine: true,
+      time: row.querySelector('.msg-time')?.textContent || '',
+      date: lastDate, sender_name: '', sender_initial: '',
+    });
+  }
 }
 
 function escAttr(s) {

@@ -9,8 +9,10 @@ class Message extends Model
 {
     protected $fillable = [
         'conversation_id', 'user_id', 'body',
-        'attachment_path', 'attachment_type', 'attachment_name',
+        'attachment_path', 'attachment_type', 'attachment_name', 'is_deleted',
     ];
+
+    protected $casts = ['is_deleted' => 'boolean'];
 
     public function conversation()
     {

@@ -116,19 +116,68 @@ class ChatController extends Controller
         abort_if(!$part, 403);
 
         $afterId = $request->query('after');
+        $since   = $request->query('since'); // Unix timestamp
 
-        $query = Message::where('conversation_id', $conversation->id)->with('user');
+        $base = Message::where('conversation_id', $conversation->id)->with('user');
 
-        $messages = $afterId !== null
-            ? $query->where('id', '>', $afterId)->orderBy('id')->get()
-            : $query->orderBy('id', 'desc')->limit(60)->get()->reverse()->values();
+        if ($afterId !== null) {
+            $new = (clone $base)->where('id', '>', $afterId)->orderBy('id')->get();
 
-        // Mark as read
-        $latest = $conversation->messages()->max('id') ?? 0;
+            $changed = collect();
+            if ($since) {
+                $sinceTime = \Carbon\Carbon::createFromTimestamp((int) $since);
+                $changed   = (clone $base)
+                    ->where('id', '<=', $afterId)
+                    ->where('updated_at', '>', $sinceTime)
+                    ->get();
+            }
+
+            $latest = Message::where('conversation_id', $conversation->id)->max('id') ?? 0;
+            $part->last_read_message_id = $latest;
+            $part->save();
+
+            return response()->json([
+                'new'     => $new->map(fn($m) => $this->fmt($m, $me)),
+                'changed' => $changed->map(fn($m) => $this->fmt($m, $me)),
+            ]);
+        }
+
+        // Initial load — flat array
+        $messages = $base->orderBy('id', 'desc')->limit(60)->get()->reverse()->values();
+
+        $latest = $messages->last()?->id ?? 0;
         $part->last_read_message_id = $latest;
         $part->save();
 
         return response()->json($messages->map(fn($m) => $this->fmt($m, $me)));
+    }
+
+    public function editMessage(Request $request, Message $message)
+    {
+        abort_if($message->user_id !== Auth::id(), 403);
+        abort_if($message->is_deleted, 403);
+
+        $request->validate(['body' => 'required|string|max:2000']);
+
+        $message->update(['body' => $request->body]);
+        $message->load('user');
+
+        return response()->json($this->fmt($message, Auth::user()));
+    }
+
+    public function deleteMessage(Message $message)
+    {
+        abort_if($message->user_id !== Auth::id(), 403);
+
+        $message->update([
+            'is_deleted'      => true,
+            'body'            => null,
+            'attachment_path' => null,
+            'attachment_type' => null,
+            'attachment_name' => null,
+        ]);
+
+        return response()->json(['ok' => true]);
     }
 
     public function send(Request $request, Conversation $conversation)
@@ -191,8 +240,21 @@ class ChatController extends Controller
 
     private function fmt(Message $m, User $me): array
     {
+        if ($m->is_deleted) {
+            return [
+                'id'             => $m->id,
+                'deleted'        => true,
+                'mine'           => $m->user_id === $me->id,
+                'time'           => $m->created_at->format('H:i'),
+                'date'           => $m->created_at->format('d.m.Y'),
+                'sender_name'    => $m->user->name,
+                'sender_initial' => strtoupper(substr($m->user->name, 0, 1)),
+            ];
+        }
+
         return [
             'id'              => $m->id,
+            'deleted'         => false,
             'body'            => $m->body,
             'attachment_url'  => $m->attachmentUrl(),
             'attachment_type' => $m->attachment_type,
@@ -202,6 +264,7 @@ class ChatController extends Controller
             'mine'            => $m->user_id === $me->id,
             'sender_name'     => $m->user->name,
             'sender_initial'  => strtoupper(substr($m->user->name, 0, 1)),
+            'edited'          => $m->updated_at->gt($m->created_at->addSeconds(2)),
         ];
     }
 }
