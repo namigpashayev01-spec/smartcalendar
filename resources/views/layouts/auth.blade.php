@@ -12,7 +12,7 @@
 <body>
 
 <header class="app-header">
-  <a href="{{ route('login') }}" class="brand">
+  <a href="{{ route('auth.cancel') }}" class="brand">
     <span class="brand-mark"><img src="{{ asset('images/logo.webp') }}" alt="logo" onerror="this.style.display='none'"/></span>
     <span class="brand-text">Smart Calendar</span>
   </a>
