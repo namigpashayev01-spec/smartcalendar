@@ -7,6 +7,7 @@ use App\Http\Controllers\MediaController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\LogController;
 use App\Http\Controllers\TwoFactorController;
+use App\Http\Controllers\UserController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/login',  [AuthController::class, 'showLogin'])->name('login');
@@ -39,4 +40,8 @@ Route::middleware('auth')->group(function () {
     Route::get('/two-factor/setup',       [TwoFactorController::class, 'setup'])->name('two-factor.setup');
     Route::post('/two-factor/enable',     [TwoFactorController::class, 'enable'])->name('two-factor.enable');
     Route::delete('/two-factor/disable',  [TwoFactorController::class, 'disable'])->name('two-factor.disable');
+
+    Route::get('/users',                              [UserController::class, 'index'])->name('users.index');
+    Route::patch('/users/{user}/email',               [UserController::class, 'updateEmail'])->name('users.update-email');
+    Route::post('/users/{user}/reset-two-factor',     [UserController::class, 'resetTwoFactor'])->name('users.reset-2fa');
 });
