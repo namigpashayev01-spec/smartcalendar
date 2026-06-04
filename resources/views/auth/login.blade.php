@@ -197,18 +197,18 @@
   <p class="login-sub">Kontent planınıza daxil olun</p>
 
   <div class="form-group">
-    <label for="username">İstifadəçi adı</label>
+    <label for="login">E-poçt və ya istifadəçi adı</label>
     <input
       type="text"
-      id="username"
-      name="username"
-      value="{{ old('username') }}"
-      placeholder="username"
+      id="login"
+      name="login"
+      value="{{ old('login') }}"
+      placeholder="email@example.com"
       autocomplete="username"
       autofocus
-      class="{{ $errors->has('username') ? 'is-invalid' : '' }}"
+      class="{{ $errors->has('login') ? 'is-invalid' : '' }}"
     />
-    @error('username')
+    @error('login')
       <div class="invalid-feedback">{{ $message }}</div>
     @enderror
   </div>

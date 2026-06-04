@@ -22,21 +22,28 @@ class AuthController extends Controller
 
     public function login(Request $request)
     {
-        $credentials = $request->validate([
-            'username' => ['required', 'string'],
+        $request->validate([
+            'login'    => ['required', 'string'],
             'password' => ['required', 'string'],
         ]);
 
-        $user = User::where('username', $credentials['username'])->first();
+        $login = $request->input('login');
+
+        // email və ya username ilə tap
+        $user = User::where('email', $login)
+                    ->orWhere('username', $login)
+                    ->first();
 
         if ($user && $user->locked_until && now()->lt($user->locked_until)) {
             $remaining = now()->diffInMinutes($user->locked_until) + 1;
             return back()->withErrors([
-                'username' => "Hesab müvəqqəti bloklanıb. {$remaining} dəqiqə sonra yenidən cəhd edin.",
-            ])->onlyInput('username');
+                'login' => "Hesab müvəqqəti bloklanıb. {$remaining} dəqiqə sonra yenidən cəhd edin.",
+            ])->onlyInput('login');
         }
 
-        if (Auth::attempt(['username' => $credentials['username'], 'password' => $credentials['password'], 'is_active' => true], $request->boolean('remember'))) {
+        $field = filter_var($login, FILTER_VALIDATE_EMAIL) ? 'email' : 'username';
+
+        if (Auth::attempt([$field => $login, 'password' => $request->password, 'is_active' => true], $request->boolean('remember'))) {
             if ($user->two_factor_confirmed_at) {
                 Auth::logout();
                 session(['2fa_user_id' => $user->id]);
@@ -57,7 +64,7 @@ class AuthController extends Controller
         }
 
         if ($user) {
-            $attempts = $user->login_attempts + 1;
+            $attempts    = $user->login_attempts + 1;
             $lockedUntil = $attempts >= self::MAX_ATTEMPTS
                 ? now()->addMinutes(self::LOCKOUT_MINUTES)
                 : null;
@@ -68,20 +75,18 @@ class AuthController extends Controller
 
             if ($lockedUntil) {
                 return back()->withErrors([
-                    'username' => self::MAX_ATTEMPTS . ' uğursuz cəhddən sonra hesab ' . self::LOCKOUT_MINUTES . ' dəqiqəlik bloklandı.',
-                ])->onlyInput('username');
+                    'login' => self::MAX_ATTEMPTS . ' uğursuz cəhddən sonra hesab ' . self::LOCKOUT_MINUTES . ' dəqiqəlik bloklandı.',
+                ])->onlyInput('login');
             }
 
-            if ($remaining > 0) {
-                return back()->withErrors([
-                    'username' => "İstifadəçi adı və ya şifrə yanlışdır. Daha {$remaining} cəhd qalıb.",
-                ])->onlyInput('username');
-            }
+            return back()->withErrors([
+                'login' => "E-poçt/istifadəçi adı və ya şifrə yanlışdır. Daha {$remaining} cəhd qalıb.",
+            ])->onlyInput('login');
         }
 
         return back()->withErrors([
-            'username' => 'İstifadəçi adı və ya şifrə yanlışdır.',
-        ])->onlyInput('username');
+            'login' => 'E-poçt/istifadəçi adı və ya şifrə yanlışdır.',
+        ])->onlyInput('login');
     }
 
     public function logout(Request $request)
