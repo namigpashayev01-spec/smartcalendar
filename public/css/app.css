@@ -113,7 +113,7 @@ button { font-family: inherit; }
 
 .btn-primary {
   margin-top: 28px;
-  background: linear-gradient(135deg, var(--accent), var(--accent-hover));
+  background: var(--accent);
   color: #fff;
   border: none;
   border-radius: 12px;
@@ -121,10 +121,10 @@ button { font-family: inherit; }
   font-size: 15px;
   font-weight: 700;
   cursor: pointer;
-  transition: transform .12s, box-shadow .2s, filter .2s;
-  box-shadow: var(--shadow-accent), inset 0 1px 0 rgba(255,255,255,.25);
+  transition: background .15s, transform .12s;
+  box-shadow: none;
 }
-.btn-primary:hover { filter: brightness(1.06); box-shadow: 0 12px 28px rgba(1, 118, 211, .42), inset 0 1px 0 rgba(255,255,255,.25); transform: translateY(-1px); }
+.btn-primary:hover { background: var(--accent-hover); transform: translateY(-1px); }
 .btn-primary:active { transform: scale(.985); }
 .btn-primary.inline { margin-top: 0; padding: 12px 22px; display: inline-flex; align-items: center; justify-content: center; gap: 7px; }
 .btn-primary.inline .ico { color: #fff; }
@@ -241,16 +241,16 @@ button { font-family: inherit; }
   width: 40px; height: 40px;
   border-radius: 12px;
   border: none;
-  background: linear-gradient(135deg, var(--accent), #0891B2);
+  background: var(--accent);
   color: #fff;
   cursor: pointer;
-  box-shadow: var(--shadow-accent), inset 0 1px 0 rgba(255,255,255,.2);
-  transition: transform .15s, box-shadow .2s;
+  box-shadow: none;
+  transition: background .15s, transform .15s;
   flex-shrink: 0;
   text-decoration: none;
 }
-.add-btn:hover { transform: translateY(-2px) scale(1.04); box-shadow: 0 10px 24px rgba(1,118,211,.5); }
-.add-btn:active { transform: scale(.94); }
+.add-btn:hover { background: var(--accent-hover); transform: translateY(-1px); }
+.add-btn:active { transform: scale(.95); }
 
 .logout-btn {
   display: inline-flex;
