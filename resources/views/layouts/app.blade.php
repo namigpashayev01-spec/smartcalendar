@@ -31,14 +31,6 @@
     @if(auth()->user()->isAdmin())
     <a href="{{ route('users.index') }}" class="ghost-btn">İstifadəçilər</a>
     @endif
-    <a href="{{ route('two-factor.setup') }}" class="ghost-btn" title="2FA Qurulumu">
-      @if(auth()->user()->two_factor_confirmed_at)
-        <svg width="14" height="14" fill="none" stroke="#34d399" stroke-width="2.2" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
-      @else
-        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
-      @endif
-      2FA
-    </a>
     <span class="user-badge">{{ auth()->user()->name }}</span>
     @stack('header-actions')
     <form method="POST" action="{{ route('logout') }}" style="display:inline">

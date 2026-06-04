@@ -16,46 +16,25 @@
 
     @if($user->two_factor_confirmed_at)
 
-      {{-- Aktiv vəziyyət --}}
-      <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:1rem;">
-        <span style="background:#EDFAF1;border:1px solid #A3E6B4;color:#2E844A;border-radius:20px;padding:.3rem .75rem;font-size:.78rem;font-weight:600;">
-          2FA Aktiv
-        </span>
-      </div>
-
-      <p style="color:var(--text-dim);font-size:.88rem;line-height:1.6;margin-bottom:1.5rem;">
-        2FA aktivdir. Deaktiv etmək üçün Google Authenticator-dakı kodu daxil edin.
-      </p>
-
-      <form method="POST" action="{{ route('two-factor.disable') }}">
-        @csrf @method('DELETE')
-        <div style="margin-bottom:1rem;">
-          <label style="display:block;font-size:.78rem;font-weight:600;color:var(--text-dim);margin-bottom:.4rem;text-transform:uppercase;letter-spacing:.5px;">Doğrulama kodu</label>
-          <input type="text" name="code" maxlength="6" inputmode="numeric" placeholder="000000" autofocus
-            style="width:100%;background:var(--surface-2);border:1.5px solid var(--border);border-radius:8px;padding:.65rem 1rem;color:var(--text);font-size:1.2rem;font-weight:700;text-align:center;letter-spacing:.4rem;font-family:monospace;outline:none;" />
-          @error('code')
-            <div style="color:#BA0517;font-size:.75rem;margin-top:.35rem;">{{ $message }}</div>
-          @enderror
+      {{-- Artıq qurulub, dəyişiklik mümkün deyil --}}
+      <div style="text-align:center;padding:1rem 0;">
+        <div style="width:56px;height:56px;border-radius:50%;background:#EDFAF1;border:2px solid #A3E6B4;display:flex;align-items:center;justify-content:center;margin:0 auto 1rem;">
+          <svg width="26" height="26" fill="none" stroke="#2E844A" stroke-width="2.5" viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg>
         </div>
-        <button type="submit" style="width:100%;background:#FFF0F0;color:#BA0517;border:1px solid #FFB3B3;border-radius:8px;padding:.7rem;font-size:.9rem;font-weight:700;font-family:inherit;cursor:pointer;">
-          2FA-nı Deaktiv Et
-        </button>
-      </form>
+        <div style="font-size:1rem;font-weight:700;color:var(--text);margin-bottom:.5rem;">2FA Aktiv</div>
+        <div style="font-size:.85rem;color:var(--text-dim);line-height:1.6;">
+          Google Authenticator uğurla quruldu.<br>
+          Giriş zamanı tətbiqdəki kodu daxil edin.
+        </div>
+      </div>
 
     @else
 
       {{-- Qurulum --}}
-      <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:1rem;">
-        <span style="background:#FFF0F0;border:1px solid #FFB3B3;color:#BA0517;border-radius:20px;padding:.3rem .75rem;font-size:.78rem;font-weight:600;">
-          2FA Aktiv Deyil
-        </span>
-      </div>
-
       <p style="color:var(--text-dim);font-size:.88rem;line-height:1.6;margin-bottom:1.25rem;">
-        Hesabınızı qorumaq üçün Google Authenticator tətbiqini quraşdırın.
+        Hesabınızı qorumaq üçün Google Authenticator tətbiqini bir dəfə quraşdırın.
       </p>
 
-      {{-- Addımlar --}}
       <div style="margin-bottom:1.5rem;">
         @foreach(['Telefonunuzda Google Authenticator tətbiqini açın', '«+» düyməsinə basıb QR kodu skan edin', 'Tətbiqdəki 6 rəqəmli kodu aşağıya daxil edib təsdiqləyin'] as $i => $step)
         <div style="display:flex;gap:.75rem;margin-bottom:.75rem;align-items:flex-start;">
@@ -65,7 +44,6 @@
         @endforeach
       </div>
 
-      {{-- QR Kod --}}
       <div style="text-align:center;margin-bottom:1.25rem;">
         <div style="display:inline-block;background:#fff;border:1px solid var(--border);border-radius:10px;padding:.75rem;">
           <img src="data:image/svg+xml;base64,{{ $qrSvg }}" width="200" height="200" alt="QR kod" />

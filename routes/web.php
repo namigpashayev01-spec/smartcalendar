@@ -44,9 +44,8 @@ Route::middleware('auth')->group(function () {
     Route::get('/log',                    [LogController::class, 'index'])->name('log');
     Route::delete('/log',                 [LogController::class, 'destroy'])->name('log.destroy');
 
-    Route::get('/two-factor/setup',       [TwoFactorController::class, 'setup'])->name('two-factor.setup');
-    Route::post('/two-factor/enable',     [TwoFactorController::class, 'enable'])->name('two-factor.enable');
-    Route::delete('/two-factor/disable',  [TwoFactorController::class, 'disable'])->name('two-factor.disable');
+    Route::get('/two-factor/setup',   [TwoFactorController::class, 'setup'])->name('two-factor.setup');
+    Route::post('/two-factor/enable', [TwoFactorController::class, 'enable'])->name('two-factor.enable');
 
     Route::get('/users',                              [UserController::class, 'index'])->name('users.index');
     Route::patch('/users/{user}/email',               [UserController::class, 'updateEmail'])->name('users.update-email');
