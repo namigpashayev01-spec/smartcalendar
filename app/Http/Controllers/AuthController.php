@@ -54,9 +54,10 @@ class AuthController extends Controller
                 return redirect()->route('two-factor.setup');
             }
 
-            // 2FA aktiv → challenge səhifəsinə yönləndir
+            // 2FA aktiv → remember seçimini saxla, challenge-ə yönləndir
+            $remember = $request->boolean('remember');
             Auth::logout();
-            session(['2fa_user_id' => $user->id]);
+            session(['2fa_user_id' => $user->id, '2fa_remember' => $remember]);
             return redirect()->route('two-factor.challenge');
         }
 

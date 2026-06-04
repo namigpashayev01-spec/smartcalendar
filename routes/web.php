@@ -24,7 +24,7 @@ Route::get('/auth/cancel', function () {
 Route::get('/two-factor-challenge',  [TwoFactorController::class, 'challenge'])->name('two-factor.challenge');
 Route::post('/two-factor-challenge', [TwoFactorController::class, 'verify'])->name('two-factor.verify')->middleware('throttle:10,1');
 
-Route::middleware('auth')->group(function () {
+Route::middleware(['auth', 'two-factor'])->group(function () {
     Route::get('/',                       [CalendarController::class, 'index'])->name('calendar');
     Route::get('/calendar/{year}/{month}',[CalendarController::class, 'show'])->name('calendar.month');
 
